@@ -4,6 +4,13 @@ Description: >
   CloudHER Serverless Contact Form Application.
   Infrastructure as Code using AWS CloudFormation.
 
+Parameters:
+
+  LambdaDeploymentBucket:
+    Type: String
+    Default: cloudher-contact-form-deploy-146739320531
+    Description: S3 bucket containing the Lambda deployment package.
+
 Resources:
 
   WebsiteBucket:
@@ -34,3 +41,77 @@ Resources:
             Action:
               - s3:GetObject
             Resource: !Sub '${WebsiteBucket.Arn}/*'
+
+  ContactLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cloudher-contact-form-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ContactLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: cloudher-contact-form-handler
+      Runtime: python3.12
+      Handler: contact_handler.lambda_handler
+      Role: !GetAtt ContactLambdaRole.Arn
+
+      Code:
+        S3Bucket: !Ref LambdaDeploymentBucket
+        S3Key: contact_function.zip
+
+  ContactApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: cloudher-contact-form-api
+      ProtocolType: HTTP
+
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+  ContactApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ContactApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ContactLambda.Arn
+      PayloadFormatVersion: '2.0'
+
+  ContactApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ContactApi
+      RouteKey: POST /contact
+      Target: !Sub integrations/${ContactApiIntegration}
+
+  ContactApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ContactApi
+      StageName: '$default'
+      AutoDeploy: true
+
+  ContactLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ContactLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ContactApi}/*/POST/contact

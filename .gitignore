@@ -1,0 +1,22 @@
+# Lambda deployment package
+lambda/contact_function.zip
+
+# Lambda test output
+lambda-response.json
+
+# Temporary Lambda extraction directory
+Lambda/test_lambda/
+lambda/test_lambda/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# AWS / local environment
+.aws/
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
