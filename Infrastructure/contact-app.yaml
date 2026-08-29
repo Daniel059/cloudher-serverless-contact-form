@@ -1,0 +1,5 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  CloudHER Serverless Contact Form Application.
+  Infrastructure as Code using AWS CloudFormation.
